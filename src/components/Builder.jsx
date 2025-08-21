@@ -23,7 +23,30 @@ export default function Builder({ botId }) {
   const [selected, setSelected] = useState(null);
   const [originalSelected, setOriginalSelected] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
+  const [inspectorOpen, setInspectorOpen] = useState(!isMobile);
   const navigate = useNavigate();
+
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      
+      // Auto-close sidebars on mobile
+      if (mobile) {
+        setSidebarOpen(false);
+        setInspectorOpen(false);
+      } else {
+        setSidebarOpen(true);
+        setInspectorOpen(true);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const onConnect = useCallback(
     (params) =>
@@ -53,7 +76,7 @@ export default function Builder({ botId }) {
             message: 'Here is some information…',
             branch: '',
             end: 'Goodbye!',
-          })[type] || '',
+          })[type] || '',
         },
         _ntype: type,
       })
@@ -66,6 +89,11 @@ export default function Builder({ botId }) {
     }
     setOriginalSelected(JSON.parse(JSON.stringify(node)));
     setSelected(node);
+    
+    // Auto-open inspector on mobile when selecting a node
+    if (isMobile) {
+      setInspectorOpen(true);
+    }
   };
 
   const onNodeDoubleClick = (_, node) => {
@@ -100,6 +128,11 @@ export default function Builder({ botId }) {
     );
     setSelected(null);
     setOriginalSelected(null);
+    
+    // Auto-close inspector on mobile after saving
+    if (isMobile) {
+      setInspectorOpen(false);
+    }
   };
 
   const cancelNodeChanges = () => {
@@ -107,6 +140,11 @@ export default function Builder({ botId }) {
     setTimeout(() => {
       setSelected(null);
       setOriginalSelected(null);
+      
+      // Auto-close inspector on mobile after canceling
+      if (isMobile) {
+        setInspectorOpen(false);
+      }
     }, 100);
   };
 
@@ -191,17 +229,58 @@ export default function Builder({ botId }) {
         backgroundSize: '20px 20px', opacity: 0.15, zIndex: 0, pointerEvents: 'none',
       }} />
 
+      {/* Mobile header bar */}
+      {isMobile && (
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0,
+          height: '60px', backgroundColor: '#fff', zIndex: 20,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '0 16px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+        }}>
+          <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '700', color: '#4f46e5' }}>
+            Chatbot Builder
+          </h2>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{
+              padding: '8px', borderRadius: '6px', border: '1px solid #e2e8f0',
+              backgroundColor: '#f8fafc', cursor: 'pointer',
+            }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M4 6h16M4 12h16M4 18h16" stroke="#4f46e5" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            </button>
+            <button onClick={() => setInspectorOpen(!inspectorOpen)} style={{
+              padding: '8px', borderRadius: '6px', border: '1px solid #e2e8f0',
+              backgroundColor: '#f8fafc', cursor: 'pointer',
+            }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228..." stroke="#4f46e5" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Sidebar */}
       <div style={{
-        width: '280px', backgroundColor: '#fff', display: 'flex', flexDirection: 'column',
-        boxShadow: '0 0 20px rgba(0,0,0,0.08)', zIndex: 10, position: 'relative',
+        width: isMobile ? '100%' : '280px', 
+        backgroundColor: '#fff', 
+        display: isMobile ? (sidebarOpen ? 'flex' : 'none') : 'flex',
+        flexDirection: 'column',
+        boxShadow: '0 0 20px rgba(0,0,0,0.08)', 
+        zIndex: 15, 
+        position: isMobile ? 'absolute' : 'relative',
+        top: isMobile ? '60px' : 0,
+        left: 0,
+        bottom: 0,
+        transition: 'transform 0.3s ease',
       }}>
         {/* Header */}
         <div style={{
           padding: '24px', borderBottom: '1px solid #f1f5f9',
           background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', color: 'white',
         }}>
-          <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h2 style={{ margin: 0, fontSize: isMobile ? '1.2rem' : '1.5rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
               <path d="M8 12H8.01M12 12H12.01M16 12H16.01M21 12C21 16.4183 16.9706 20 12 20..." stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
@@ -253,10 +332,31 @@ export default function Builder({ botId }) {
             <span>Nodes:</span><span style={{ fontWeight: '600' }}>{nodes.length}</span>
           </div>
         </div>
+        
+        {/* Close button for mobile */}
+        {isMobile && (
+          <div style={{ padding: '16px', borderTop: '1px solid #f1f5f9' }}>
+            <button onClick={() => setSidebarOpen(false)} style={{
+              width: '100%', padding: '12px', backgroundColor: '#f1f5f9',
+              color: '#475569', border: 'none', borderRadius: '8px',
+              cursor: 'pointer', fontWeight: '600',
+            }}>
+              Close
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Canvas */}
-      <div style={{ flex: 1, position: 'relative', margin: '16px', borderRadius: '12px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', overflow: 'hidden', zIndex: 5 }}>
+      <div style={{ 
+        flex: 1, 
+        position: 'relative', 
+        margin: isMobile ? '60px 0 0 0' : '16px', 
+        borderRadius: isMobile ? '0' : '12px', 
+        boxShadow: isMobile ? 'none' : '0 4px 20px rgba(0,0,0,0.06)', 
+        overflow: 'hidden', 
+        zIndex: 5 
+      }}>
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -271,25 +371,54 @@ export default function Builder({ botId }) {
           fitView
         >
           <Background color="#cbd5e1" gap={32} variant="dots" size={1} />
-          <Controls style={{ backgroundColor: '#fff', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.12)', border: '1px solid #e2e8f0' }} />
+          <Controls style={{ 
+            backgroundColor: '#fff', 
+            borderRadius: '8px', 
+            boxShadow: '0 4px 12px rgba(0,0,0,0.12)', 
+            border: '1px solid #e2e8f0',
+            bottom: isMobile ? 70 : 10,
+          }} />
         </ReactFlow>
       </div>
 
       {/* Inspector */}
       <div style={{
-        width: '320px', backgroundColor: '#fff', display: 'flex', flexDirection: 'column',
-        boxShadow: '0 0 20px rgba(0,0,0,0.08)', zIndex: 10, position: 'relative',
+        width: isMobile ? '100%' : '320px', 
+        backgroundColor: '#fff', 
+        display: isMobile ? (inspectorOpen ? 'flex' : 'none') : 'flex',
+        flexDirection: 'column',
+        boxShadow: '0 0 20px rgba(0,0,0,0.08)', 
+        zIndex: 15, 
+        position: isMobile ? 'absolute' : 'relative',
+        top: isMobile ? '60px' : 0,
+        right: 0,
+        bottom: 0,
+        transition: 'transform 0.3s ease',
       }}>
         <div style={{
           padding: '24px', borderBottom: '1px solid #f1f5f9',
           background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', color: 'white',
+          position: 'relative'
         }}>
-          <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h3 style={{ margin: 0, fontSize: isMobile ? '1.1rem' : '1.125rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
               <path d="M12 16V12M12 8H12.01M22 12C22 17.5228 17.5228..." stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             Node Properties
           </h3>
+          
+          {/* Close button for mobile */}
+          {isMobile && (
+            <button onClick={() => setInspectorOpen(false)} style={{
+              position: 'absolute', right: '16px', top: '16px',
+              padding: '6px', borderRadius: '6px', backgroundColor: 'rgba(255,255,255,0.2)',
+              border: 'none', color: 'white', cursor: 'pointer',
+            }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            </button>
+          )}
         </div>
 
         {selected ? (
@@ -316,14 +445,16 @@ export default function Builder({ botId }) {
 
             <div style={{ marginBottom: '24px', flex: 1 }}>
               <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '0.875rem', color: '#334155' }}>Content</label>
-              <ReactQuill
-                theme="snow"
-                value={selected.data.content || ''}
-                onChange={(value) => updateSelected('content', value)}
-                modules={{ toolbar: [['bold', 'italic'], [{ list: 'ordered' }, { list: 'bullet' }], ['clean']] }}
-                formats={['bold', 'italic', 'list', 'bullet']}
-                style={{ height: '200px', marginBottom: '40px', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-              />
+              <div style={{ height: isMobile ? '150px' : '200px', marginBottom: isMobile ? '20px' : '40px' }}>
+                <ReactQuill
+                  theme="snow"
+                  value={selected.data.content || ''}
+                  onChange={(value) => updateSelected('content', value)}
+                  modules={{ toolbar: [['bold', 'italic'], [{ list: 'ordered' }, { list: 'bullet' }], ['clean']] }}
+                  formats={['bold', 'italic', 'list', 'bullet']}
+                  style={{ height: isMobile ? '120px' : '180px', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+                />
+              </div>
             </div>
 
             <div style={{ padding: '16px', backgroundColor: '#f1f5f9', borderRadius: '8px', borderLeft: '4px solid #6366f1', marginBottom: '24px' }}>
