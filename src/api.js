@@ -1,2 +1,2 @@
 import axios from 'axios'
-export const API = axios.create({ baseURL: 'http://127.0.0.1:8000/api' })
+export const API = axios.create({ baseURL: 'https://chat-bot-backend-qog3.onrender.com/api' })
